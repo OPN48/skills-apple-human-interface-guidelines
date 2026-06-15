@@ -1,13 +1,75 @@
 ---
 name: "apple-human-interface-guidelines-colors"
-description: "iOS系统配色方案，包含Apple HIG颜色和VIP配色，支持白天/夜间模式切换。Invoke when user needs iOS-style colors for Android app."
+description: "HIG 配色：Android 用 colors.xml hex；iOS 必须用 SwiftUI Color 系统 API，含主题色 Color.cyan/pink/blue。Invoke when user needs iOS-style colors for Android app OR iOS color governance."
 ---
 
 # iOS System Colors
 
-基于 Apple Human Interface Guidelines 的系统配色方案，包含白天和夜间模式。
+> **平台分流**
+> - **Android**：下文 hex 表 → `values/colors.xml` / `values-night/colors.xml`
+> - **iOS**：**禁止**在业务 UI 使用本表 hex；改用 SwiftUI `Color`（见 [iOS SwiftUI 实施方案](#ios-swiftui-实施方案)）
 
-## 白天模式 (Light Mode)
+## iOS SwiftUI 实施方案
+
+iOS 全部界面语义色与主题色走 [SwiftUI `Color`](https://developer.apple.com/documentation/swiftui/color) — context-dependent，渲染前由系统解析，自动适配浅色/深色/增对比度。
+
+### 创建颜色的优先级
+
+1. `Color.primary` / `Color.secondary` — 主/次级文字
+2. `Color.cyan` / `Color.pink` / `Color.blue` / `Color.red` 等标准 palette
+3. `Color(uiColor: .systemBackground)` 等 — 背景、分割、grouped 列表（SwiftUI 无对应静态成员时）
+4. `Color("Name")` — 仅 VIP/品牌等无系统等价色
+
+**禁止**（业务 UI）：`Color(red:)`、`Color(hex:)`、自定义 token 转发系统语义色、`UIColor.systemCyan` 作主题色。
+
+### 主题色三档（App 设置）
+
+| 设置项 | SwiftUI | 禁止 |
+|--------|---------|------|
+| 青柠青 | `Color.cyan` | hex、`Color(red:)`、封装 enum 转发 |
+| 莓果粉 | `Color.pink` | 同上 |
+| 海盐蓝 | `Color.blue` | 同上 |
+
+```swift
+@EnvironmentObject private var appearance: ThemeStore
+
+.tint(appearance.accentColor)
+.background(appearance.accentColor)
+
+// ThemeStore.AccentTheme
+var accentColor: Color {
+    switch self {
+    case .cyan: Color.cyan
+    case .pink: Color.pink
+    case .blue: Color.blue
+    }
+}
+```
+
+业务 View 直接写 SwiftUI `Color`；主题色唯一来源是应用级 `ThemeStore`（或等价的 `ObservableObject`），不新增二次封装层。
+
+### 语义色（View 内直接用）
+
+| 用途 | 写法 |
+|------|------|
+| 主文字 | `Color.primary` |
+| 次级文字 | `Color.secondary` |
+| 页面背景 | `Color(uiColor: .systemBackground)` |
+| Tab/卡片背景 | `Color(uiColor: .secondarySystemBackground)` |
+| 分割线 | `Color(uiColor: .separator)` |
+| 错误/角标 | `Color.red` |
+| accent 按钮上图标 | `Color.white` |
+| 图片叠层文字 | `Color.white`（非 `primary`） |
+
+### 着色 API
+
+- 用 `.foregroundStyle(...)`、`.tint(...)`，新代码不用 `.foregroundColor`
+- 不缓存 `color.resolve(in:)` 的 RGB
+- 避免 `Theme.textPrimary` 等语义色二次封装；优先在 View 内直接写 SwiftUI `Color`
+
+---
+
+## 白天模式 (Light Mode) — Android hex 参考
 
 ### 彩色系
 
@@ -100,6 +162,18 @@ description: "iOS系统配色方案，包含Apple HIG颜色和VIP配色，支持
 ---
 
 ## 使用方式
+
+### iOS — SwiftUI Color
+
+**不要**把下方 hex 写入 Swift。主题色与语义色直接在 View 里写 SwiftUI API：
+
+```swift
+.foregroundStyle(Color.primary)
+.background(Color(uiColor: .systemBackground))
+.tint(appearance.accentColor)   // Color.cyan / .pink / .blue
+```
+
+Android hex 表仅用于 Android 资源与跨端设计对照。
 
 ### Android (values/colors.xml)
 
